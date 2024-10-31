@@ -1,0 +1,3 @@
+[submodule "pybind11_protobuf"]
+	path = pybind11_protobuf
+	url = https://github.com/uynitsuj/pybind11_protobuf.git

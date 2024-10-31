@@ -19,16 +19,20 @@ def main():
     config = egm.BaseConfiguration()
     config.use_velocity_outputs = True
     config.axes = egm.RobotAxes.Seven
-
+    print(f"Configuration: {config}")
     try:
         # Create controller
         controller = egm.EGMControllerInterface(io_service, 
                                               egm.Constants.DEFAULT_PORT_NUMBER,
                                               config)
-        
         print(f"Controller initialized: {controller.isInitialized()}")
+        print(f"Controller port: {controller.getConfiguration().port}")
         print("Waiting for connection...")
         
+        print(f"Controller connected: {controller.isConnected()}")
+        
+        print(io_service)
+        import pdb; pdb.set_trace()
         # Main control loop
         while not controller.isConnected():
             time.sleep(1)

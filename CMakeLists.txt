@@ -7,6 +7,11 @@ if(NOT package_xml_str MATCHES "<version>([0-9]+.[0-9]+.[0-9]+)</version>")
   message(FATAL_ERROR "Could not parse project version from package.xml. Aborting.")
 endif()
 
+# Set C++17 standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--disable-new-dtags")
+
 
 # At this point we either have a proper version string, or we've errored
 # out with a FATAL_ERROR above. So assume CMAKE_MATCH_1 contains our
@@ -50,7 +55,6 @@ endif()
 set(EgmProtoFiles proto/egm.proto proto/egm_wrapper.proto proto/egm_wrapper_trajectory.proto)
 if(NOT QUIET)
   message(STATUS "Generating protobuf C++ for: ${EgmProtoFiles}")
-  message(STATUS "Protobuf output directory: ${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 if(MSVC)
   # Add export macro when using Microsoft Visual C++ compiler.
@@ -70,11 +74,16 @@ find_package(Threads REQUIRED)
 # previous find_package(...) determine the system's thread library.
 list(REMOVE_ITEM PROTOBUF_LIBRARIES "-lpthread")
 
+
 ###########
 ## Build ##
 ###########
 option(BUILD_SHARED_LIBS "Build dynamically-linked binaries" ON)
 option(USE_PYTHON "Build the Python interface" ON)
+
+# RPATH Configuration: Only use relative paths for portability
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 set(
   SRC_FILES
@@ -93,34 +102,51 @@ set(
 #  add_subdirectory(python)
 # endif()
 
+add_subdirectory(pybind11_protobuf)
+
 add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 include(GenerateExportHeader)
 generate_export_header(${PROJECT_NAME})
 
+set(ABSL_ENABLE_INSTALL ON)
+
+include(FetchContent)
+FetchContent_Declare(
+  absl
+  GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
+  GIT_TAG 20230125.3
+  FIND_PACKAGE_ARGS ${_absl_package_args} NAMES absl)
+
+FetchContent_MakeAvailable(absl)
+
 target_include_directories(${PROJECT_NAME} PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include;${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pybind11_protobuf>"
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>
   ${PROTOBUF_INCLUDE_DIRS}
+  ${absl_SOURCE_DIR}
+  pybind11_native_proto_caster
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(${PROJECT_NAME} PUBLIC "-Wl,--disable-new-dtags"
   Boost::regex
   Boost::system
   Boost::thread
   ${PROTOBUF_LIBRARIES}
   Threads::Threads
+  absl::strings       
+  absl::base          
+  absl::flat_hash_map
+  absl::flat_hash_set
+  absl::hash
+  absl::optional
+  absl::city             
+  absl::low_level_hash    
+  absl::strings_internal  
+  absl::raw_logging_internal 
 )
-
-#if(NOT BUILD_SHARED_LIBS)
-#  target_compile_definitions(${PROJECT_NAME} PUBLIC "ABB_LIBEGM_STATIC_DEFINE")
-#endif()
-
-#if(MSVC)
-#  # Force include the export header when using Microsoft Visual C++ compiler.
-#  target_compile_options(${PROJECT_NAME} PUBLIC "/FI${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
-#endif()
 
 # Python bindings
 if(SKBUILD OR USE_PYTHON)
@@ -134,13 +160,17 @@ if(SKBUILD OR USE_PYTHON)
     )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "$ORIGIN"
-    BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
+      BUILD_RPATH "$ORIGIN:$ORIGIN/../lib"
+      BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH_USE_LINK_PATH TRUE
     )
 
     set_target_properties(_abb_libegm PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
+        BUILD_RPATH "$ORIGIN:$ORIGIN/../lib"
         BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH_USE_LINK_PATH TRUE
     )
 
     # Include directories for Python module
@@ -149,12 +179,25 @@ if(SKBUILD OR USE_PYTHON)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
         ${PROTOBUF_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/pybind11_protobuf
+        pybind11_native_proto_caster
     )
 
     # Link libraries for Python module
-    target_link_libraries(_abb_libegm PRIVATE
+    target_link_libraries(_abb_libegm PRIVATE "-Wl,--disable-new-dtags"
         ${PROJECT_NAME}
         pybind11::headers
+        pybind11_native_proto_caster
+        absl::strings       
+        absl::base          
+        absl::flat_hash_map
+        absl::flat_hash_set
+        absl::hash
+        absl::optional
+        absl::city             
+        absl::low_level_hash    
+        absl::strings_internal  
+        absl::raw_logging_internal 
     )
 
     # Add version info
