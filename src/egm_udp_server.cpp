@@ -34,7 +34,7 @@
  ***********************************************************************************************************************
  */
 
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 
 #include "abb_libegm/egm_udp_server.h"
 

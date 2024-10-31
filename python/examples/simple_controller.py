@@ -2,7 +2,7 @@
 
 import time
 import threading
-import abb_libegm_py as egm
+import abb_libegm as egm
 
 def run_io_service(io_service):
     """Run the IO service in a separate thread"""
@@ -18,7 +18,7 @@ def main():
     # Create configuration
     config = egm.BaseConfiguration()
     config.use_velocity_outputs = True
-    config.axes = egm.RobotAxes.Six
+    config.axes = egm.RobotAxes.Seven
 
     try:
         # Create controller
