@@ -1,0 +1,27 @@
+[build-system]
+requires = [
+    "setuptools>=75.2.0",
+    "wheel",
+    "pybind11~=2.13.0",
+    "scikit-build-core>=0.8.0",
+    "cmake>=3.18",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "abb_libegm"
+version = "1.2.0"
+description = "ABB Externally Guided Motion Library"
+requires-python = ">=3.7"
+
+[tool.scikit-build]
+# Use version instead of minimum-version
+cmake.version = ">=3.18"
+cmake.args = [
+    "-DBUILD_PYTHON_BINDINGS=ON",
+    "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON",
+]
+cmake.build-type = "Release"
+wheel.expand-macos-universal-tags = true
+# Specify the package location
+wheel.packages = ["abb_libegm"]
